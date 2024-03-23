@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: <ns>
+  creationTimestamp: null
+  labels:
+    rengine: postgres-pv
+    app: rengine-postgres-db-pv
+  name: rengine-postgres-db-pv
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+status: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: <ns>
+  creationTimestamp: null
+  labels:
+    rengine: postgres
+    app: db
+  name: db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        rengine: postgres
+        app: rengine-postgres-db
+    spec:
+      containers:
+      - env:
+        - name: POSTGRES_DATABASE
+          value: rengine
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rengine-secrets
+              key: rengine_postgres_password
+        - name: POSTGRES_USER
+          value: rengine
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        image: postgres:16.2
+        imagePullPolicy: ""
+        name: db
+        resources: {}
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: rengine-postgres-db-pv
+      restartPolicy: Always
+      serviceAccountName: ""
+      automountServiceAccountToken: false
+      volumes:
+      - name: rengine-postgres-db-pv
+        persistentVolumeClaim:
+          claimName: rengine-postgres-db-pv
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: <ns>
+  creationTimestamp: null
+  labels:
+    app: rengine-postgres-db
+  name: rengine-postgres-db
+spec:
+  ports:
+  - name: postgres
+    port: 5432
+    protocol: TCP
+    targetPort: 5432
+  selector:
+    app: rengine-postgres-db
+  type: ClusterIP
+status: {}

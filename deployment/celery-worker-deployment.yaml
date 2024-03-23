@@ -1,0 +1,60 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: <ns>
+  creationTimestamp: null
+  name: rengine-celery-worker
+  labels:
+    rengine: rengine-celery-worker
+    app: rengine-celery-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rengine-celery-worker
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        rengine: rengine-celery-worker
+        app: rengine-celery-worker
+    spec:
+      containers:
+      - env:
+        - name: CELERY_BROKER
+          value: redis://rengine-redis-cache:6379/0
+        - name: CELERY_BACKEND
+          value: redis://rengine-redis-cache:6379/0
+        - name: MAX_CONCURRENCY
+          value: "80"
+        - name: MIN_CONCURRENCY
+          value: "1"
+        - name: DOMAIN_NAME
+          value: rengine-web
+        - name: POSTGRES_DB
+          value: rengine
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_HOST
+          value: db
+        - name: POSTGRES_USER
+          value: rengine
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rengine-secrets
+              key: rengine_postgres_password
+        image: yogeshojha/rengine:master
+        imagePullPolicy: ""
+        name: rengine-celery-worker
+        command: ["celery"]
+        args: ["-A", "reNgine", "worker", "--autoscale=${MAX_CONCURRENCY},${MIN_CONCURRENCY}", "--loglevel=info"]
+        resources: {}
+      restartPolicy: Always
+      serviceAccountName: ""
+      automountServiceAccountToken: false
+status: {}
+---

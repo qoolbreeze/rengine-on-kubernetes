@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: <ns>
+  creationTimestamp: null
+  name: rengine-nginx
+  labels:
+    rengine: nginx
+    app: rengine-nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rengine-nginx
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        rengine: nginx
+        app: rengine-nginx
+    spec:
+      containers:
+      - image: nginx:1.25.4
+        imagePullPolicy: ""
+        name: rengine-nginx
+        resources: {}
+        volumeMounts:
+        - mountPath: /etc/nginx/
+          readOnly: true
+          name: rengine-nginx-conf
+        - mountPath: /usr/src/app/staticfiles
+          name: rengine-web-pv
+      restartPolicy: Always
+      serviceAccountName: ""
+      automountServiceAccountToken: false
+      volumes:
+      - name: rengine-nginx-conf
+        configMap:
+          name: rengine-nginx-conf
+      - name: rengine-web-pv
+        persistentVolumeClaim:
+          claimName: rengine-web-pv
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: <ns>
+  creationTimestamp: null
+  labels:
+    app: rengine-nginx
+  name: rengine-nginx
+spec:
+  ports:
+  - name: proxy
+    port: 80
+    protocol: TCP
+    targetPort: 8000
+  selector:
+    app: rengine-nginx
+  type: ClusterIP
+status: {}
+---

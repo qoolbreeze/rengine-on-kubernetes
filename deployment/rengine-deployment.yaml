@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: <ns>
+  creationTimestamp: null
+  labels:
+    rengine: rengine-web-pv
+    app: rengine-web-pv
+  name: rengine-web-pv
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi
+status: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: <ns>
+  name: rengine-startup-script
+data:
+  custom-entrypoint.sh: |
+    #!/bin/bash
+    cd /usr/src/app
+    python3 manage.py collectstatic --noinput --skip-checks
+    python3 manage.py createsuperuser admin --noinput
+    python3 manage.py shell -c "from django.contrib.auth.models import User; usr = User.objects.get(username='admin'); usr.set_password($RENGINE_ADMIN_PASSWORD); usr.save(); "
+    /usr/src/app/entrypoint.sh
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: <ns>
+  creationTimestamp: null
+  name: rengine-web
+  labels:
+    rengine: rengine-web
+    app: rengine-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rengine-web
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        rengine: rengine-web
+        app: rengine-web
+    spec:
+      containers:
+      - env:
+        - name: DEBUG
+          value: "0"
+        - name: CELERY_BROKER
+          value: redis://rengine-redis-cache:6379/0
+        - name: CELERY_BACKEND
+          value: redis://rengine-redis-cache:6379/0
+        - name: MAX_CONCURRENCY
+          value: "80"
+        - name: MIN_CONCURRENCY
+          value: "1"
+        - name: DOMAIN_NAME
+          value: rengine-web
+        - name: POSTGRES_DB
+          value: rengine
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_HOST
+          value: db
+        - name: POSTGRES_USER
+          value: rengine
+        - name: RENGINE_CURRENT_VERSION
+          value: "2.0.3"
+        - name: db
+          value: rengine-postgres-db
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rengine-secrets
+              key: rengine_postgres_password
+        - name: RENGINE_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rengine-secrets
+              key: rengine_admin_password
+        image: yogeshojha/rengine:master
+        imagePullPolicy: ""
+        name: rengine-web
+        command: ["/root/startup/custom-entrypoint.sh"]
+        resources: {}
+        volumeMounts:
+        - mountPath: /usr/src/app/staticfiles
+          name: rengine-web-pv
+        - mountPath: /root/startup
+          name: rengine-startup-script
+      restartPolicy: Always
+      serviceAccountName: ""
+      automountServiceAccountToken: false
+      volumes:
+      - name: rengine-web-pv
+        persistentVolumeClaim:
+          claimName: rengine-web-pv
+      - name: rengine-startup-script
+        configMap:
+          name: rengine-startup-script
+          defaultMode: 0550
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: <ns>
+  creationTimestamp: null
+  labels:
+    app: rengine-web
+  name: rengine-web
+spec:
+  ports:
+  - name: web
+    port: 8000
+    protocol: TCP
+    targetPort: 8000
+  selector:
+    app: rengine-web
+  type: ClusterIP
+status: {}

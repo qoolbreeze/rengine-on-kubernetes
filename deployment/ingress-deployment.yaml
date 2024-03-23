@@ -1,0 +1,15 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: rengine-traefik
+  namespace: <ns>
+spec:
+  entryPoints:
+  - websecure
+  routes:
+    - match: Host(`rengine.<your_domain>`)
+      kind: Rule
+      services:
+        - name: rengine-web
+          port: 8000
+  tls: {}

@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  namespace: <ns>
+  creationTimestamp: null
+  name: rengine-redis-cache-pv
+  labels:
+    rengine: redis-pv
+    app: rengine-redis-cache-pv
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi
+status: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: <ns>
+  creationTimestamp: null
+  name: rengine-redis-cache
+  labels:
+    rengine: redis
+    app: rengine-redis-cache
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rengine-redis-cache
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        rengine: redis
+        app: rengine-redis-cache
+    spec:
+      containers:
+      - image: redis:7.2.4
+        imagePullPolicy: ""
+        name: rengine-redis-cache
+        resources: {}
+        volumeMounts:
+        - mountPath: /data
+          name: rengine-redis-cache-pv
+      restartPolicy: Always
+      serviceAccountName: ""
+      automountServiceAccountToken: false
+      volumes:
+      - name: rengine-redis-cache-pv
+        persistentVolumeClaim:
+          claimName: rengine-redis-cache-pv
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: <ns>
+  creationTimestamp: null
+  labels:
+    app: rengine-redis-cache
+  name: rengine-redis-cache
+spec:
+  ports:
+  - name: redis
+    port: 6379
+    protocol: TCP
+    targetPort: 6379
+  selector:
+    app: rengine-redis-cache
+  type: ClusterIP
+status: {}

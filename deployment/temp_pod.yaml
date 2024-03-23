@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: temp-pod
+  namespace: <ns>
+spec:
+  containers:
+  - name: temp-pod
+    image: debian:latest
+    command: ["/bin/bash", "-c", "--"]
+    args: ["while true; do sleep 30; done;"]
+    volumeMounts:
+    - mountPath: /mnt
+      name: rengine-postgres-db-pv
+  volumes:
+  - name: rengine-postgres-db-pv
+    persistentVolumeClaim:
+      claimName: rengine-postgres-db-pv

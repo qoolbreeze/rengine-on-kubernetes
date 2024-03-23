@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
+**/rengine_postgres_password
+**/rengine_admin_password
 
 # C extensions
 *.so
